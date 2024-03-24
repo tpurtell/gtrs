@@ -105,6 +105,16 @@ if errors.As(msg.Err, &fpe) {
 errors.Is(msg.Err, errMyTypeFailedToParse)
 ```
 
+#### Connection Usage and the Block Configuration
+
+The underlying redis library provides a pool of connections.  A connection is consumed for the duration 
+of time that you are streaming results back.  For internal use cases with a fixed number of consumers, the 
+default blocking configuration is simple and efficient.  If you allow client requests to trigger consumer, 
+for example while implementing a long poll, then you should choose an appropriate Block period to allow 
+connections to be released back to pool if the stream never sees another event.  Block determines the 
+maximum time each redis XREAD command issued is pending.  If you wish to implement a true timeout, then
+you should do it using the context for creating the consumer, eg. context.WithTimeout(ctx, ...)
+
 #### Streams
 
 Streams are simple wrappers for basic redis commands on a stream.

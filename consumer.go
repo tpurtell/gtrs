@@ -113,6 +113,11 @@ func (sc *StreamConsumer[T]) fetchLoop() {
 		}
 
 		res, err := sc.read(fetchedIds, stBuf)
+		// The block timeout was reached and nothing could be returned
+		// Keep going, a cancellation should be signaled only via the context
+		if err == redis.Nil {
+			continue
+		}
 		if err != nil {
 			sendCheckCancel(sc.ctx, sc.fetchErrChan, err)
 			// Don't close channels preemptively

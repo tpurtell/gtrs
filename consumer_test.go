@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -174,6 +175,80 @@ func TestConsumer_CancelContext(t *testing.T) {
 
 	seen := cs.Close()
 	assert.Equal(t, fmt.Sprintf("0-%v", consumeCount), seen["s1"])
+}
+
+func TestConsumer_Block(t *testing.T) {
+	ms, rdb := startMiniredis(t)
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), 1*time.Second)
+	defer cancelFunc()
+	cs := NewConsumer[city](ctx, rdb, StreamIDs{"s1": "0-0"}, StreamConsumerConfig{
+		Block:      100 * time.Millisecond,
+		Count:      0,
+		BufferSize: 0,
+	})
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		ms.XAdd("s1", "", []string{"name", "Town"})
+	}()
+
+	read, ok := <-cs.Chan()
+	assert.True(t, ok)
+	assert.Nil(t, read.Err)
+	assert.Equal(t, "Town", read.Data.Name)
+
+	_, ok = <-cs.Chan()
+	assert.False(t, ok)
+
+	// Make sure the fetch channel is closed since we finished using it
+	select {
+	case _, ok := <-cs.fetchChan:
+		assert.False(t, ok)
+	case <-time.After(500 * time.Millisecond):
+		//without timeouts, this would hang forever
+		assert.Fail(t, "channel stuck")
+	}
+}
+
+func TestConsumer_BlockNoPoll(t *testing.T) {
+	ms, rdb := startMiniredis(t)
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), 1*time.Second)
+	defer cancelFunc()
+	cs := NewConsumer[city](ctx, rdb, StreamIDs{"s1": "0-0"}, StreamConsumerConfig{
+		Block:      0,
+		Count:      0,
+		BufferSize: 0,
+	})
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		ms.XAdd("s1", "", []string{"name", "Town"})
+	}()
+
+	read, ok := <-cs.Chan()
+	assert.True(t, ok)
+	assert.Nil(t, read.Err)
+	assert.Equal(t, "Town", read.Data.Name)
+
+	_, ok = <-cs.Chan()
+	assert.False(t, ok)
+
+	// Prove that the fetch loop doesn't finish unless you use Block
+	select {
+	case _, ok := <-cs.fetchChan:
+		assert.False(t, ok)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	_, ok = <-cs.Chan()
+
+	// This is true even if you explicitly closed it
+	select {
+	case _, ok := <-cs.fetchChan:
+		assert.False(t, ok)
+	case <-time.After(500 * time.Millisecond):
+	}
+
 }
 
 type benchmarkClientMock struct {
