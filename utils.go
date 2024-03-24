@@ -3,8 +3,8 @@ package gtrs
 import (
 	"context"
 
-	"github.com/dranikpg/gtrs/gtrsconvert"
 	"github.com/redis/go-redis/v9"
+	"github.com/tpurtell/gtrs/gtrsconvert"
 )
 
 // Metadata is a type that allows serialization of generic structured

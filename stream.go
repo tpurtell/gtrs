@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dranikpg/gtrs/gtrsconvert"
 	"github.com/redis/go-redis/v9"
+	"github.com/tpurtell/gtrs/gtrsconvert"
 )
 
 var NoExpiration = time.Duration(0)

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dranikpg/gtrs/gtrsconvert"
 	"github.com/stretchr/testify/assert"
+	"github.com/tpurtell/gtrs/gtrsconvert"
 )
 
 type person struct {
